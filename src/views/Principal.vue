@@ -354,7 +354,7 @@ const loadDevices = () => {
 const redirigir = (device) => {
   // Verifica que device y device.id estén definidos
   if (device && device.id !== undefined) {
-    const otraApp = ` https://sergiorc13.github.io/IOT_secundario/?deviceId=${device.id}`;
+    const otraApp = `http://localhost:5174/?deviceId=${device.id}`;
 
     // Abre la URL en una nueva ventana 
     window.open(otraApp, '_blank');
