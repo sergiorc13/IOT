@@ -35,27 +35,27 @@
                             <!-- Dispositivos -->
                             <div v-if="!device.updating" class="device">
                               <div class="device-info">
-                                <h2 class="name" @click="redirigir(device)">
+                                <h2 class="name" @click="{devices.map(el => el.updating = false); device.updating = true}">
                                   {{ device.data.name }}
                                 </h2>
                               </div>
 
                               <div class="device-data">
                                 <div v-if="device.data.type == 'sensor'">
-                                  {{ device.data.value.value }} {{ device.data.unit }}
+                                  {{ device.data.value }} {{ device.data.unit }}
                                 </div>
 
                                 <!-- Mostrar 'Activo' o 'Inactivo' para ejecutores -->
-                                <div v-else-if="device.data.type == 'ejecutor'">
+                                <!-- <div v-else-if="device.data.type == 'ejecutor'">
                                   <h2 :class="{ 'activo': device.data.value.on, 'inactivo': !device.data.value.on }">
                                     {{ device.data.value.on ? 'Activo' : 'Inactivo' }}
                                   </h2>
-                                </div>
+                                </div>  -->
 
-                                <!-- Botón de editar los dispositivos -->
+                                <!-- Botón de editar los dispositivos
                                 <div class="settings" title="settings" @click="{devices.map(el => el.updating = false); device.updating = true}">
                                   <h1>Editar</h1>
-                                </div>
+                                </div> -->
                               </div>
                             </div>
 
@@ -63,21 +63,22 @@
 
                             <!-- Desplegable para editar un dispositivo -->
                             <div v-else class="device justify-between">
-                                <input type="text" :placeholder="device.data.name" v-model="updatedDeviceName" class="device-input">
-                                <div class="flex">
-                                    <div @click="modifyDeviceName(device)" class="settings">                                        
-                                        <h1>Hecho</h1>
-                                    </div>
-                                    <div @click="openSpaceSwitch(device)" class="settings">
-                                        <h1>Mover</h1>
-                                    </div>
-                                    <div @click="confirmDeleteDevice(device.id)" class="settings">
-                                        <h1>Borrar</h1>
-                                    </div>
-                                    <div @click="{device.updating = false; updatedDeviceName = ''}" class="settings">
-                                        <h1>Cancelar</h1>
-                                    </div>
+                              <input type="text" :placeholder="device.data.name" v-model="updatedDeviceName" class="device-input">
+                              <input type="number" :placeholder="device.data.value" v-model="updateDeviceValue" class="device-input">
+                              <div class="flex">
+                                <div @click="modifyDevice(device)" class="settings">                                        
+                                  <h1>Hecho</h1>
                                 </div>
+                                <div @click="openSpaceSwitch(device)" class="settings">
+                                  <h1>Mover</h1>
+                                </div>
+                                <div @click="confirmDeleteDevice(device.id)" class="settings">
+                                  <h1>Borrar</h1>
+                                </div>
+                                <div @click="{device.updating = false; updatedDeviceName = ''; updateDeviceValue = ''}" class="settings">
+                                  <h1>Cancelar</h1>
+                                </div>
+                              </div>
                             </div>
                         </div>
 
@@ -123,15 +124,17 @@
         <div class="modal-bg" v-if="sensorModal">
             <div class="modal">
                 <form>
-                    <label>Creando nuevo sensor en "{{ selectedSpace.name }}"</label>
-                    <input placeholder="nombre" v-model="newDeviceName" type="text">
-                    <label>¿Qué va a medir este sensor?</label>
-                    <select v-model="newSensorUnit" class="seleccion">
-                      <option value="unidad" selected disabled>Seleccionar</option> 
-                      <option value="Lx">Luz</option>
-                      <option value="º">Temperatura</option>
-                      <option value="%">Humedad</option>
-                    </select>
+                  <label>Creando nuevo sensor en "{{ selectedSpace.name }}"</label>
+                  <input placeholder="nombre" v-model="newDeviceName" type="text">
+                  <label>¿Qué va a medir este sensor?</label>
+                  <select v-model="newSensorUnit" class="seleccion">
+                    <option value="unidad" selected disabled>Seleccionar</option> 
+                    <option value="Lx">Luz</option>
+                    <option value="º">Temperatura</option>
+                    <option value="%">Humedad</option>
+                  </select>
+                  <label>Valor de la medida:</label>  
+                  <input type="number" v-model="newSensorValue" placeholder="Valor">
                 </form>
                 <p class="message">{{ message }}</p>
                 <div class="button-container">
@@ -192,7 +195,9 @@ import { useStore } from '@/stores/user.js'
 
 import { getSpaces, getDevices, addSpace, deleteSpace, addDevice, deleteDevice, updateDevice, getUnits } from '@/firebase.js'
 
-
+function mostrar(){
+  alert('Hola')
+}
 
 const router = useRouter()                          //Router para cambiar de página
 const user = useStore()                             //Usuario actual
@@ -206,7 +211,9 @@ const switchModal = ref(false)                      //Control del modal de cambi
 const newSpaceName = ref('')                        //V-model del input del nuevo nombre que tiene un espacio creado
 const newDeviceName = ref('')                       //V-model del input del nuevo nombre que tiene un dispositivo creado
 const updatedDeviceName = ref('')                   //V-model del input del nuevo nombre que tiene un dispositivo editado
+const updateDeviceValue = ref('')                   //V-model del input del nuevo valor que tiene un sensor editado 
 const newSensorUnit = ref('unidad')                 //V-model del input del nuevo parámetro que mide un dispositivo creado
+const newSensorValue = ref('')                      //V-model del input del nuevo valor que tiene un sensor creado
 const selectedSpace = ref({})                       //Espacio utilizado a la hora de crear un nuevo dispositivo
 const deviceSelected = ref({})                      //Dispositivo a trasladar durante un cambio de espacio
 const units = ref([])                               //Unidades de medida utilizadas en la creacion de sensores
@@ -232,16 +239,18 @@ const newSensor = () => {
         message.value = 'Dale un nombre al sensor'
     else if(newSensorUnit.value == 'unidad')
         message.value = 'Selecciona lo que quieras medir'
+    else if(newSensorValue.value === '')
+        message.value = 'Ingresa un valor numérico para el sensor'; // Verifica si se ha ingresado un valor numérico
     else {
         addDevice({
             type: 'sensor',
             name: newDeviceName.value,
             space: selectedSpace.value.id,
-            value: '-',
+            value: newSensorValue.value, // Asigna el valor numérico ingresado a device.data.value
             unit: newSensorUnit.value,
             user: user.getID()
-        })
-        closeModal()
+        });
+        closeModal();
     }
 }
 
@@ -281,14 +290,20 @@ const closeModal = () => {
 
 
 //Editar el nombre de un dispositivo
-const modifyDeviceName = (device) => {
-    if(updatedDeviceName.value == '')
-        alert('Rellena el nombre del dispositivo')
-    else {
-        updateDevice(device.id, { name: updatedDeviceName.value })
-        device.updating = false
-        updatedDeviceName.value = ''
-    }
+const modifyDevice = (device) => {
+  if(updatedDeviceName.value == '')
+    alert('Rellena el nombre del dispositivo')
+  else if(updateDeviceValue.value == '')
+    alert('Rellena el valor del dispositivo')
+  else {
+    updateDevice(device.id, { 
+      name: updatedDeviceName.value,
+      value: updateDeviceValue.value
+    })
+    device.updating = false
+    updatedDeviceName.value = ''
+    updateDeviceValue.value = ''
+  }
 }
 
 
@@ -350,18 +365,7 @@ const loadDevices = () => {
   });
 };
 
-// Navegar a la página del dispositivo
-const redirigir = (device) => {
-  // Verifica que device y device.id estén definidos
-  if (device && device.id !== undefined) {
-    const otraApp = `http://localhost:5174/?deviceId=${device.id}`;
 
-    // Abre la URL en una nueva ventana 
-    window.open(otraApp, '_blank');
-  } else {
-    console.error('No se pudo redirigir, el ID del dispositivo no está definido.');
-  }
-};
 
 
 
@@ -374,7 +378,7 @@ onMounted(() => {
 
 
 //Cierre de sesión 
-const logout = () => {
+const logout = () => {  
     if(confirm('¿Desea cerrar la sesión?')){
         user.logout()
         router.push({ name: 'login' })
