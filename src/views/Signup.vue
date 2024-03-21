@@ -2,7 +2,7 @@
     <div class="page bg-darkgreen">
         <div class="signup">
             <form @submit.prevent="signup()">
-            <h1>IOT de casa</h1>
+            <h1>VUE IOT</h1>
                 <input v-model="username" id="username" type="text" placeholder="Usuario">
                 <input v-model="password" id="password" type="password" placeholder="Contraseña">
                 <button>REGISTRARSE</button>
@@ -109,7 +109,7 @@ button {
 }
 
 button:hover {
-  background-color: #2980b9; 
+  background-color:rgb(1, 68, 112); 
 }
 
 .message {

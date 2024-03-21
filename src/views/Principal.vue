@@ -1,3 +1,221 @@
+<script setup>
+// Imports necesarios para el código 
+import { ref,  onMounted } from 'vue'
+
+import { useRouter } from 'vue-router'
+
+import { useStore } from '@/stores/user.js'
+
+import { getSpaces, getDevices, addSpace, deleteSpace, addDevice, deleteDevice, updateDevice, getUnits } from '@/firebase.js'
+
+const router = useRouter()                          //Router para cambiar de página
+const user = useStore()                             //Usuario actual
+const spaces = ref([])                              //Espacios de un usuario
+const devices = ref([])                             //Dispositivos de un usuario
+const spaceModal = ref(false)                       //Control del modal de creacion de espacios
+const sensorModal = ref(false)                      //Control del modal de creacion de sensores
+const executorModal = ref(false)                    //Control del modal de creacion de ejecutores
+const switchModal = ref(false)                      //Control del modal de cambio de espacio de un dispositivo
+
+const newSpaceName = ref('')                        //V-model del input del nuevo nombre que tiene un espacio creado
+const newDeviceName = ref('')                       //V-model del input del nuevo nombre que tiene un dispositivo creado
+const updatedDeviceName = ref('')                   //V-model del input del nuevo nombre que tiene un dispositivo editado
+const updateDeviceValue = ref('')                   //V-model del input del nuevo valor que tiene un sensor editado 
+
+
+
+const newSensorUnit = ref('unidad')                 //V-model del input del nuevo parámetro que mide un dispositivo creado
+const newSensorValue = ref('')                      //V-model del input del nuevo valor que tiene un sensor creado
+const selectedSpace = ref({})                       //Espacio utilizado a la hora de crear un nuevo dispositivo
+const deviceSelected = ref({})                      //Dispositivo a trasladar durante un cambio de espacio
+
+const message = ref('')                            //Mensaje de error en la creacion de un nuevo espacio o dispositivo            
+
+
+//Crear un nuevo espacio
+const newSpace = () => {
+    if(newSpaceName.value != ''){
+        addSpace({
+            name: newSpaceName.value,
+            user: user.getID()
+        })
+        closeModal()
+    }
+    else message.value = 'Ponle un nombre al espacio'
+}
+
+
+//Crear un nuevo sensor
+const newSensor = () => {
+    if(newDeviceName.value == '')
+        message.value = 'Dale un nombre al sensor'
+    else if(newSensorUnit.value == 'unidad')
+        message.value = 'Selecciona lo que quieras medir'
+    else if(newSensorValue.value === '')
+        message.value = 'Ingresa un valor numérico para el sensor'; // Verifica si se ha ingresado un valor numérico
+    else {
+        addDevice({
+            type: 'sensor',
+            name: newDeviceName.value,
+            space: selectedSpace.value.id,
+            value: newSensorValue.value, // Asigna el valor numérico ingresado a device.data.value
+            unit: newSensorUnit.value,
+            user: user.getID()
+        });
+        closeModal();
+    }
+}
+
+
+//Crear un nuevo ejecutor
+const newExecutor = () => {
+    if(newDeviceName.value == '')
+        message.value = 'Dale un nombre al ejecutor'
+    else {
+        addDevice({
+            type: 'ejecutor',
+            name: newDeviceName.value,
+            space: selectedSpace.value.id,
+            on: false, 
+            user: user.getID(),
+            date: '-'
+        })
+        closeModal()
+    }
+}
+
+
+//Cerrar los modales
+const closeModal = () => {
+    newSpaceName.value = ''
+    newDeviceName.value = ''
+    selectedSpace.value = {}
+    deviceSelected.value = ''
+    newSensorUnit.value = 'unidad'
+    spaces.value.map(el => el.selected = false)
+    
+    message.value = ''
+    
+    spaceModal.value = false
+    sensorModal.value = false
+    executorModal.value = false
+    switchModal.value = false
+}
+
+
+//Editar el nombre de un dispositivo
+const modifyDeviceSensor = (device) => {
+  if (updatedDeviceName.value === '') {
+    alert('Ponle un nombre a tu dispositivo');
+  } else if (updateDeviceValue.value === '') {
+    alert('Introduce una medida');
+  } else {
+    updateDevice(device.id, { 
+      name: updatedDeviceName.value,
+      value: updateDeviceValue.value
+    });
+    device.updating = false;
+    updatedDeviceName.value = '';
+    updateDeviceValue.value = '';
+  }
+}
+
+
+const modifyDeviceEjecutor = (device) => {
+  if (updatedDeviceName.value === '') {
+    alert('Vuelve a ponerle un nombre a tu dispositivo o cambia a uno nuevo'); 
+  } else {
+    updateDevice(device.id, { 
+      name: updatedDeviceName.value,
+      on: device.data.on  
+    });
+    device.updating = false;
+    updatedDeviceName.value = '';
+    updateDeviceValue.value = '';
+  }
+}
+
+
+//Editar el espacio de un dispositivo
+const modifyDeviceSpace = () => {
+    updateDevice(deviceSelected.value, { space: spaces.value.reduce((ac, el) => ac.selected ? ac : el ).id })
+    closeModal()
+}
+
+
+//Abrir el modal de cambio de espacio
+const openSpaceSwitch = (device) => {
+    switchModal.value = true
+    selectedSpace.value = device.data.space
+    deviceSelected.value = device.id
+}
+
+
+//Seleccionar un espacio
+const selectSpace = (space) => {
+    spaces.value.map(el => el.selected = false)
+    space.selected = true
+}
+
+
+//Borrar un dispositivo
+const confirmDeleteDevice = (id) => {
+    if(confirm('¿Está seguro que quiere borrar el dispositivo?'))
+        deleteDevice(id)
+}
+
+
+//Borrar un espacio
+const confirmDeleteSpace = (id) => {
+    if(confirm('¿Está seguro que quiere borrar el espacio?'))
+        deleteSpace(id)
+}
+
+
+//Obtener los espacios del usuario
+const loadSpaces = () => {
+    getSpaces(user.getID(), (spaceDocs) => {
+        spaces.value = []
+        spaceDocs.forEach(spaceDoc => {
+            spaces.value.push({id: spaceDoc.id, name: spaceDoc.data().name, control : false, selected: false})
+        })
+    })
+}
+
+
+//Obtener los dispositivos del usuario
+const loadDevices = () => {
+  getDevices(user.getID(), (deviceDocs) => {
+    devices.value = [];
+    deviceDocs.forEach((deviceDoc) =>
+      devices.value.push({
+        id: deviceDoc.id,
+        data: deviceDoc.data(),
+        updating: false,
+      })
+    );
+  });
+};
+
+
+//Cargar los espacios y dispositivos del usuario
+onMounted(() => {
+    loadSpaces()
+    loadDevices()
+})
+
+
+//Cierre de sesión 
+const logout = () => {  
+    if(confirm('¿Desea cerrar la sesión?')){
+        user.logout()
+        router.push({ name: 'login' })
+    }
+}
+</script>
+
+
+
 <template>
     <div class="page">
         <div class="principal">
@@ -45,44 +263,67 @@
                                   {{ device.data.value }} {{ device.data.unit }}
                                 </div>
 
-                                <!-- Mostrar 'Activo' o 'Inactivo' para ejecutores -->
-                                <!-- <div v-else-if="device.data.type == 'ejecutor'">
-                                  <h2 :class="{ 'activo': device.data.value.on, 'inactivo': !device.data.value.on }">
-                                    {{ device.data.value.on ? 'Activo' : 'Inactivo' }}
-                                  </h2>
-                                </div>  -->
-
-                                <!-- Botón de editar los dispositivos
-                                <div class="settings" title="settings" @click="{devices.map(el => el.updating = false); device.updating = true}">
-                                  <h1>Editar</h1>
-                                </div> -->
+                                <div v-if="device.data.type == 'ejecutor'">
+                                  <div class="estado">
+                                    <!-- <input type="checkbox" v-model="device.data.on"> -->
+                                    <h2 :class="{ 'activo': device.data.on, 'inactivo': !device.data.on }">
+                                       {{ device.data.on ? 'Activo' : 'Inactivo' }}
+                                    </h2> 
+                                  </div>
+                                </div>
                               </div>
                             </div>
 
-
-
                             <!-- Desplegable para editar un dispositivo -->
+                            <!-- Deplegable para el ejecutor -->
                             <div v-else class="device justify-between">
-                              <input type="text" :placeholder="device.data.name" v-model="updatedDeviceName" class="device-input">
-                              <input type="number" :placeholder="device.data.value" v-model="updateDeviceValue" class="device-input">
-                              <div class="flex">
-                                <div @click="modifyDevice(device)" class="settings">                                        
-                                  <h1>Hecho</h1>
-                                </div>
-                                <div @click="openSpaceSwitch(device)" class="settings">
-                                  <h1>Mover</h1>
-                                </div>
-                                <div @click="confirmDeleteDevice(device.id)" class="settings">
-                                  <h1>Borrar</h1>
-                                </div>
-                                <div @click="{device.updating = false; updatedDeviceName = ''; updateDeviceValue = ''}" class="settings">
-                                  <h1>Cancelar</h1>
+                              <div v-if="device.data.type == 'ejecutor'">
+                                <input type="text" :placeholder="device.data.name" v-model="updatedDeviceName" class="device-input">
+                                <div class="estado">
+                                  <label>Activar/Desactivar</label>
+                                  <input type="checkbox" v-model="device.data.on">
+                                </div>                      
+                                <div class="flex">
+                                  <div @click="modifyDeviceEjecutor(device)" class="settings">                                        
+                                    <h1>Hecho</h1>
+                                  </div>
+                                  <div @click="openSpaceSwitch(device)" class="settings">
+                                    <h1>Mover</h1>
+                                  </div>
+                                  <div @click="confirmDeleteDevice(device.id)" class="settings">
+                                    <h1>Borrar</h1>
+                                  </div>
+                                  <div @click="{device.updating = false; updatedDeviceName = ''; updateDeviceValue = ''}" class="settings">
+                                    <h1>Cancelar</h1>
+                                  </div>
                                 </div>
                               </div>
+
+
+                              <!-- Desplegable para el sensor -->
+                              <div v-if="device.data.type == 'sensor'">
+                                <input type="text" :placeholder="device.data.name" v-model="updatedDeviceName" class="device-input">
+                                <input type="number" :placeholder="device.data.value" v-model="updateDeviceValue" class="device-input">
+                                <div class="flex">
+                                  <div @click="modifyDeviceSensor(device)" class="settings">                                        
+                                    <h1>Hecho</h1>
+                                  </div>
+                                  <div @click="openSpaceSwitch(device)" class="settings">
+                                    <h1>Mover</h1>
+                                  </div>
+                                  <div @click="confirmDeleteDevice(device.id)" class="settings">
+                                    <h1>Borrar</h1>
+                                  </div>
+                                  <div @click="{device.updating = false; updatedDeviceName = ''; updateDeviceValue = ''}" class="settings">
+                                    <h1>Cancelar</h1>
+                                  </div>
+                                </div>
+                              </div>
+                             
                             </div>
                         </div>
 
-                        <!--   de cada espacio: Borrar el espacio o añadir sensores o ejecutores -->
+                        <!-- Botones de borrar espacio y de añadir dispotivos -->
                         <div class="flex justify-between">
                             <button class="space-button-delete" @click="confirmDeleteSpace(space.id)">Borrar espacio</button>
                             <div class="flex gap-4">
@@ -129,9 +370,9 @@
                   <label>¿Qué va a medir este sensor?</label>
                   <select v-model="newSensorUnit" class="seleccion">
                     <option value="unidad" selected disabled>Seleccionar</option> 
-                    <option value="Lx">Luz</option>
-                    <option value="º">Temperatura</option>
-                    <option value="%">Humedad</option>
+                    <option value="Lx de luz">Luz</option>
+                    <option value="º de temperatura">Temperatura</option>
+                    <option value="% de humedad">Humedad</option>
                   </select>
                   <label>Valor de la medida:</label>  
                   <input type="number" v-model="newSensorValue" placeholder="Valor">
@@ -148,22 +389,22 @@
     <!-- Creación de un nuevo ejecutor del espacio -->
     <Teleport to="#executorModal">
         <div class="modal-bg" v-if="executorModal">
-            <div class="modal">
-                <form>
-                    <label>Creando nuevo ejecutor en "{{ selectedSpace.name }}"</label>
-                    <input placeholder="nombre" v-model="newDeviceName" type="text">
-                </form>
-                <p class="message">{{ message }}</p>
-                <div class="button-container">
-                    <button @click="closeModal()" class="cancel">Cancelar</button>
-                    <button @click="newExecutor()" class="create">Añadir</button>
-                </div>
+          <div class="modal">
+            <form>
+              <label>Creando nuevo ejecutor en "{{ selectedSpace.name }}"</label>
+              <input placeholder="Nombre" v-model="newDeviceName" type="text">
+            </form>
+            <p class="message">{{ message }}</p>
+            <div class="button-container">
+              <button @click="closeModal()" class="cancel">Cancelar</button>
+              <button @click="newExecutor()" class="create">Añadir</button>
             </div>
+          </div>
         </div>
     </Teleport>
 
 
-    <!-- Cambiar de espacio -->
+    <!-- Cambiar de espacio el dispositivo que queramos -->
     <Teleport to="#switchModal">
         <div class="modal-bg" v-if="switchModal">
             <div class="modal">
@@ -184,217 +425,14 @@
 </template>
 
 
-<script setup>
-
-// Imports necesarios para el código 
-import { ref,  onMounted } from 'vue'
-
-import { useRouter } from 'vue-router'
-
-import { useStore } from '@/stores/user.js'
-
-import { getSpaces, getDevices, addSpace, deleteSpace, addDevice, deleteDevice, updateDevice, getUnits } from '@/firebase.js'
-
-function mostrar(){
-  alert('Hola')
-}
-
-const router = useRouter()                          //Router para cambiar de página
-const user = useStore()                             //Usuario actual
-const spaces = ref([])                              //Espacios de un usuario
-const devices = ref([])                             //Dispositivos de un usuario
-const spaceModal = ref(false)                       //Control del modal de creacion de espacios
-const sensorModal = ref(false)                      //Control del modal de creacion de sensores
-const executorModal = ref(false)                    //Control del modal de creacion de ejecutores
-const switchModal = ref(false)                      //Control del modal de cambio de espacio de un dispositivo
-
-const newSpaceName = ref('')                        //V-model del input del nuevo nombre que tiene un espacio creado
-const newDeviceName = ref('')                       //V-model del input del nuevo nombre que tiene un dispositivo creado
-const updatedDeviceName = ref('')                   //V-model del input del nuevo nombre que tiene un dispositivo editado
-const updateDeviceValue = ref('')                   //V-model del input del nuevo valor que tiene un sensor editado 
-const newSensorUnit = ref('unidad')                 //V-model del input del nuevo parámetro que mide un dispositivo creado
-const newSensorValue = ref('')                      //V-model del input del nuevo valor que tiene un sensor creado
-const selectedSpace = ref({})                       //Espacio utilizado a la hora de crear un nuevo dispositivo
-const deviceSelected = ref({})                      //Dispositivo a trasladar durante un cambio de espacio
-const units = ref([])                               //Unidades de medida utilizadas en la creacion de sensores
-const message = ref('')                            //Mensaje de error en la creacion de un nuevo espacio o dispositivo            
-
-
-//Crear un nuevo espacio
-const newSpace = () => {
-    if(newSpaceName.value != ''){
-        addSpace({
-            name: newSpaceName.value,
-            user: user.getID()
-        })
-        closeModal()
-    }
-    else message.value = 'Pon un nombre al espacio'
-}
-
-
-//Crear un nuevo sensor
-const newSensor = () => {
-    if(newDeviceName.value == '')
-        message.value = 'Dale un nombre al sensor'
-    else if(newSensorUnit.value == 'unidad')
-        message.value = 'Selecciona lo que quieras medir'
-    else if(newSensorValue.value === '')
-        message.value = 'Ingresa un valor numérico para el sensor'; // Verifica si se ha ingresado un valor numérico
-    else {
-        addDevice({
-            type: 'sensor',
-            name: newDeviceName.value,
-            space: selectedSpace.value.id,
-            value: newSensorValue.value, // Asigna el valor numérico ingresado a device.data.value
-            unit: newSensorUnit.value,
-            user: user.getID()
-        });
-        closeModal();
-    }
-}
-
-//Crear un nuevo ejecutor
-const newExecutor = () => {
-    if(newDeviceName.value == '')
-        message.value = 'Dale un nombre al ejecutor'
-    else {
-        addDevice({
-            type: 'ejecutor',
-            name: newDeviceName.value,
-            space: selectedSpace.value.id,
-            on: false,
-            user: user.getID(),
-            date: '-'
-        })
-        closeModal()
-    }
-}
-
-//Cerrar los modales
-const closeModal = () => {
-    newSpaceName.value = ''
-    newDeviceName.value = ''
-    selectedSpace.value = {}
-    deviceSelected.value = ''
-    newSensorUnit.value = 'unidad'
-    spaces.value.map(el => el.selected = false)
-    
-    message.value = ''
-    
-    spaceModal.value = false
-    sensorModal.value = false
-    executorModal.value = false
-    switchModal.value = false
-}
-
-
-//Editar el nombre de un dispositivo
-const modifyDevice = (device) => {
-  if(updatedDeviceName.value == '')
-    alert('Rellena el nombre del dispositivo')
-  else if(updateDeviceValue.value == '')
-    alert('Rellena el valor del dispositivo')
-  else {
-    updateDevice(device.id, { 
-      name: updatedDeviceName.value,
-      value: updateDeviceValue.value
-    })
-    device.updating = false
-    updatedDeviceName.value = ''
-    updateDeviceValue.value = ''
-  }
-}
-
-
-//Editar el espacio de un dispositivo
-const modifyDeviceSpace = () => {
-    updateDevice(deviceSelected.value, { space: spaces.value.reduce((ac, el) => ac.selected ? ac : el ).id })
-    closeModal()
-}
-
-
-//Abrir el modal de cambio de espacio
-const openSpaceSwitch = (device) => {
-    switchModal.value = true
-    selectedSpace.value = device.data.space
-    deviceSelected.value = device.id
-}
-
-//Seleccionar un espacio
-const selectSpace = (space) => {
-    spaces.value.map(el => el.selected = false)
-    space.selected = true
-}
-
-
-//Borrar un dispositivo
-const confirmDeleteDevice = (id) => {
-    if(confirm('¿Está seguro que quiere borrar el dispositivo?'))
-        deleteDevice(id)
-}
-
-//Borrar un espacio
-const confirmDeleteSpace = (id) => {
-    if(confirm('¿Está seguro que quiere borrar el espacio?'))
-        deleteSpace(id)
-}
-
-//Obtener los espacios del usuario
-const loadSpaces = () => {
-    getSpaces(user.getID(), (spaceDocs) => {
-        spaces.value = []
-        spaceDocs.forEach(spaceDoc => {
-            spaces.value.push({id: spaceDoc.id, name: spaceDoc.data().name, control : false, selected: false})
-        })
-    })
-}
-
-
-//Obtener los dispositivos del usuario
-const loadDevices = () => {
-  getDevices(user.getID(), (deviceDocs) => {
-    devices.value = [];
-    deviceDocs.forEach((deviceDoc) =>
-      devices.value.push({
-        id: deviceDoc.id,
-        data: deviceDoc.data(),
-        updating: false,
-      })
-    );
-  });
-};
-
-
-
-
-
-//Cargar los espacios y dispositivos del usuario
-onMounted(() => {
-    loadSpaces()
-    loadDevices()
-})
-
-
-
-//Cierre de sesión 
-const logout = () => {  
-    if(confirm('¿Desea cerrar la sesión?')){
-        user.logout()
-        router.push({ name: 'login' })
-    }
-}
-
-</script>
-
 
 <style scoped>
-/*Estilos de la página principal*/
+/* Estilos */
 .page {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
+  height: 200vh; 
   background: linear-gradient(to right, #000074, #000000); 
 }
 
@@ -405,8 +443,9 @@ const logout = () => {
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   width: 80%;
   max-width: 1200px;
-  margin: 20px auto;
+  margin: 50px 10px 650px; 
 }
+
 
 .header {
   display: flex;
@@ -733,6 +772,17 @@ input {
 
 .inactivo {
   color: red;
+  font-weight: bold;
+}
+
+.estado {
+  display: block;
+  padding: 20px 10px;
+  background-color: #ffffff;
+  text-align: center;
+}
+
+.estado label{
   font-weight: bold;
 }
 

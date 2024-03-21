@@ -3,7 +3,6 @@ import Login from '../views/Login.vue'
 import Signup from '../views/Signup.vue'
 import Principal from '../views/Principal.vue'
 
-
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [

@@ -1,6 +1,8 @@
 import { initializeApp } from 'firebase/app'
 import { getFirestore, doc, collection, query, where, onSnapshot, addDoc, deleteDoc, updateDoc } from 'firebase/firestore'
 
+
+
 export const firebaseApp = initializeApp({
     apiKey: "AIzaSyAFpihSfji648IMt2BqVNuvyTc6o63vgBg",
     authDomain: "cliente-fdd75.firebaseapp.com",
@@ -15,7 +17,6 @@ const db = getFirestore(firebaseApp)
 
 export const getUser = (username, callback) => onSnapshot(query(collection(db, 'users'), where("username", "==", username)), callback)
 export const addUser = (user) => addDoc(collection(db, 'users'), user)
-
 export const getSpaces = (user, callback) => onSnapshot(query(collection(db, 'spaces'), where("user", "==", user)), callback)
 export const addSpace = (space) => addDoc(collection(db, 'spaces'), space)
 export const deleteSpace = (id) => {
@@ -24,10 +25,8 @@ export const deleteSpace = (id) => {
     })
     deleteDoc(doc(db, 'spaces', id))
 }
-
 export const getDevices = (user, callback) => onSnapshot(query(collection(db, 'devices'), where("user", "==", user)), callback)
 export const addDevice = (device) => addDoc(collection(db, 'devices'), device)
 export const deleteDevice = (id) => deleteDoc(doc(db, 'devices', id))
 export const updateDevice = (id, device) => updateDoc(doc(db, "devices", id), device)
-
 export const getUnits = (callback) => onSnapshot(collection(db, 'units'), callback)

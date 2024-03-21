@@ -2,12 +2,12 @@
     <div class="page">
         <div class="login">
             <form @submit.prevent="login()">
-            <h1> IOT de casa </h1>
+            <h1> VUE IOT </h1>
                 <input v-model="username" id="username" type="text" placeholder="Usuario">
                 <input v-model="password" id="password" type="password" placeholder="Contraseña">
                 <button>INICIAR SESIÓN</button>
                 <p class="message">{{ message }}</p>
-                <p class="signup" @click="router.push({ name: 'signup' })">o regístrate</p>
+                <p class="signup" @click="router.push({ name: 'signup' })">o regístrate aquí</p>
             </form>
         </div>
     </div>
@@ -100,7 +100,7 @@ button {
 }
 
 button:hover {
-  background-color: #2980b9; /* Cambia esto al color del botón al pasar el ratón que desees */
+  background-color: rgb(1, 68, 112);; /* Cambia esto al color del botón al pasar el ratón que desees */
 }
 
 .message {

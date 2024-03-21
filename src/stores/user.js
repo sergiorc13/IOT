@@ -4,9 +4,10 @@ import { defineStore } from 'pinia'
 export const useStore = defineStore('user', () => {
   // Recupera el ID del localStorage al cargar la página
   const id = ref(localStorage.getItem('id') || '')
-  const username = ref('')
 
+  const username = ref('')
   const getID = () => id.value
+  
   const setID = (newID) => {
     id.value = newID
     // Guarda el nuevo ID en localStorage
